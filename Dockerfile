@@ -1,55 +1,66 @@
 # ベースイメージをTensorFlow 1.x系に変更
-FROM tensorflow/tensorflow:1.15.5
+FROM tensorflow/tensorflow:1.15.5-gpu
 
 ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
 
 # 必要なパッケージをインストール
 RUN apt-get update && \
-    apt-get install -y python python-tk git curl unzip
+    apt-get install -y \
+    python \
+    python-tk \
+    git \
+    curl \
+    unzip \
+    wget \
+    vim \
+    emacs \
+    nano \
+    protobuf-compiler \
+    build-essential \
+    python3-dev \
+    && apt-get clean
 
 # 必要なディレクトリを作成
 RUN mkdir -p /tensorflow/models
 
-# TensorFlowモデルのリポジトリをクローン
-RUN git clone https://github.com/tensorflow/models.git && \
-    (cd models && git checkout f788046ca876a8820e05b0b48c1fc2e16b0955bc) && \
-    cp -r models/research /tensorflow/models/ && \
-    rm -rf models
+# TensorFlowモデルのリポジトリをクローンし、指定のコミットにチェックアウト
+RUN git clone https://github.com/tensorflow/models.git /tensorflow/models && \
+    cd /tensorflow/models && \
+    git checkout 420a7253e034a12ae2208e6ec94d3e4936177a53
 
 # 必要なPythonパッケージをインストール
-RUN pip install Cython && \
-    pip install contextlib2 && \
-    pip install pillow && \
-    pip install lxml && \
-    pip install jupyter && \
-    pip install matplotlib
+RUN pip install --upgrade pip && \
+    pip install \
+    'Cython==0.29.21' \
+    contextlib2 \
+    pillow \
+    lxml \
+    jupyter \
+    matplotlib \
+    tf_slim \
+    'numpy==1.19.5'
 
-# protocのインストール
-RUN curl -OL "https://github.com/google/protobuf/releases/download/v3.0.0/protoc-3.0.0-linux-x86_64.zip" && \
-    unzip protoc-3.0.0-linux-x86_64.zip -d proto3 && \
-    mv proto3/bin/* /usr/local/bin && \
-    mv proto3/include/* /usr/local/include && \
-    rm -rf proto3 protoc-3.0.0-linux-x86_64.zip
-
-# pycocoapiのインストール
+# pycocotoolsのインストール
 RUN git clone --depth 1 https://github.com/cocodataset/cocoapi.git && \
     cd cocoapi/PythonAPI && \
     make -j8 && \
+    pip install . && \
     cp -r pycocotools /tensorflow/models/research && \
     cd ../../ && \
     rm -rf cocoapi
 
 # protocを使用してオブジェクト検出プロトコルをコンパイル
 RUN cd /tensorflow/models/research && \
-    protoc object_detection/protos/*.proto --python_out=.
+    protoc object_detection/protos/*.proto --python_out=. && \
+    cp object_detection/packages/tf1/setup.py . && \
+    python -m pip install --use-feature=2020-resolver .
 
 # PYTHONPATHを設定
 ENV PYTHONPATH $PYTHONPATH:/tensorflow/models/research:/tensorflow/models/research/slim
 
-# wgetとエディタをインストール
-RUN apt-get update && \
-    apt-get install -y wget vim emacs nano
-
-ARG work_dir=/tensorflow/models/research
-
-WORKDIR ${work_dir}
+# 作業ディレクトリを設定
+WORKDIR /tensorflow/models/research

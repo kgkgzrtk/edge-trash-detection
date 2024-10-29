@@ -1,0 +1,36 @@
+# Python関連
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+
+# 環境設定ファイル
+.env
+*.env
+
+# TensorFlowモデルやチェックポイント
+models/
+!models/pretrained_model/  # 必要な場合は除外
+*.ckpt
+*.pb
+*.tflite
+
+# データセット関連
+dataset/*.record
+dataset/*.csv
+dataset/*.json
+
+# ログファイル
+logs/
+*.log
+
+# Docker関連
+*.tar
+*.tar.gz
+
+# その他
+*.swp
+*.swo
+.DS_Store
+Thumbs.db 

@@ -99,3 +99,65 @@ python scripts/quantize_model.py
 
 - **NVIDIA GPUが必須です**：転移学習や量子化のプロセスにはNVIDIAドライバとContainer Toolkitが必要です。
 - **データセットの準備に時間がかかる可能性があります**：TACOデータセットは大規模であるため、ダウンロードに時間がかかることがあります。
+## 追加スクリプトと説明
+
+### download_model.sh
+このスクリプトは、事前学習済みのSSDLite MobileDetモデルをダウンロードします。以下のように実行してください。
+
+```bash
+bash scripts/download_model.sh
+```
+
+### quantize_model.py
+このスクリプトは、学習済みのモデルを8ビット量子化し、TFLiteフォーマットに変換します。以下のコマンドで実行できます。
+
+```bash
+python scripts/quantize_model.py
+```
+
+### build_docker.sh
+Docker環境をビルドするためのスクリプトです。以下のコマンドで実行します。
+
+```bash
+bash build_docker.sh
+```
+
+### train.py
+`train/`ディレクトリ内の`train.py`は、モデルのトレーニングを実行するためのスクリプトです。
+
+```bash
+python train/train.py
+```
+
+### ssdlite_mobilenet_taco.config
+`config/`ディレクトリ内の`ssdlite_mobilenet_taco.config`は、モデルの学習に使用される設定ファイルです。訓練時にこのファイルを参照してください。
+
+### 転移学習 + 量子化の流れ
+
+1. **環境構築**
+    - Dockerを使用して、以下のコマンドで環境を構築してください。
+    ```bash
+    bash build_docker.sh
+    ```
+
+2. **事前学習モデルとデータセットの準備**
+    - 以下のコマンドで事前学習モデルをダウンロードし、TACOデータセットを準備します。
+    ```bash
+    bash scripts/download_model.sh
+    python data/prepare_taco_dataset.py
+    ```
+
+3. **転移学習**
+    - モデルを転移学習させます。以下のコマンドを実行してください。
+    ```bash
+    python scripts/retrain_ssdlite_mobiledet.py
+    ```
+
+4. **学習したモデルの評価**
+    - 以下のコマンドでモデルの評価を行います。
+    ```bash
+    bash scripts/evaluate.sh
+    ```
+
+5. **モデルの量子化**
+    - 転移学習後、モデルは自動的に量子化され、TFLite形式で保存されます。量子化されたモデルは `model_quantized.tflite` という名前で保存されます。

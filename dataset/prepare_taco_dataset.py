@@ -51,9 +51,19 @@ def create_tf_example(image_info, annotations, image_dir, category_name):
     }))
     return tf_example
 
+def create_label_map(category_name, output_file):
+    with open(output_file, 'w') as f:
+        for category_id, category in category_name.items():
+            f.write("item {\n")
+            f.write(f"  id: {int(category_id)}\n")
+            f.write(f"  name: '{category}'\n")
+            f.write("}\n\n")
+
 def main():
     # TACOデータセットのパスを修正
-    taco_dir = '../data/TACO'
+    taco_dir = 'data/TACO'
+    output_dir = 'dataset'
+    os.makedirs(output_dir, exist_ok=True)
     annotations_file = os.path.join(taco_dir, 'data/annotations.json')
     
     coco = COCO(annotations_file)
@@ -61,9 +71,9 @@ def main():
     # カテゴリ名の取得
     category_name = {cat['id']: cat['name'] for cat in coco.loadCats(coco.getCatIds())}
     
-    # TFRecordの出力先ディレクトリ
-    output_dir = '../data'
-    os.makedirs(output_dir, exist_ok=True)
+    # ラベルマップの作成
+    label_map_output = os.path.join(output_dir, 'label_map.pbtxt')
+    create_label_map(category_name, label_map_output)
     
     # 訓練データとテストデータの分割（80:20）
     image_ids = list(coco.imgs.keys())
