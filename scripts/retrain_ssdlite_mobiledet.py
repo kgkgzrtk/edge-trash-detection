@@ -12,7 +12,7 @@ os.environ['PYTHONPATH'] += ':/tensorflow/models/research/:/tensorflow/models/re
 # Check for experiment name argument; if not provided, use a default with timestamp
 parser = argparse.ArgumentParser(description='Retrain SSDLite MobileDet model')
 parser.add_argument('--experiment_name', type=str, 
-                    default=f"retrained_ssdlite_mobiledet_taco_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    default=f"retrained_ssdlite_mobiledet_td_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     help='Name of the experiment')
 args = parser.parse_args()
 
@@ -27,6 +27,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # Model setup
 PRETRAINED_MODEL_NAME = 'ssdlite_mobiledet_cpu_320x320_coco_2020_05_19'
 PRETRAINED_MODEL_DIR = os.path.join('models', 'pretrained_model')
+os.makedirs(PRETRAINED_MODEL_DIR, exist_ok=True)
 PRETRAINED_MODEL_PATH = os.path.join(PRETRAINED_MODEL_DIR, PRETRAINED_MODEL_NAME)
 PRETRAINED_MODEL_TAR = os.path.join(PRETRAINED_MODEL_DIR, f'{PRETRAINED_MODEL_NAME}.tar.gz')
 
@@ -37,12 +38,12 @@ if not os.path.exists(PRETRAINED_MODEL_PATH):
     os.system(f'tar -xzvf {PRETRAINED_MODEL_TAR} -C {PRETRAINED_MODEL_DIR}')
 
 # Training parameters
-NUM_STEPS = 40000  # Increase training steps
-BATCH_SIZE = 32    # Adjust batch size
-NUM_CLASSES = 60   # TACO dataset class count
+NUM_STEPS = 20000  # Increase training steps
+BATCH_SIZE = 16    # Adjust batch size
+NUM_CLASSES = 5   # Trash Detection dataset class count
 
 # Use the pre-configured pipeline config
-CONFIG_PATH = 'config/ssdlite_mobilenet_taco.config'  # Use the provided config file
+CONFIG_PATH = 'config/ssdlite_mobilenet_td.config'  # Use the provided config file
 
 # Load and update pipeline config with specific training parameters
 pipeline_config = pipeline_pb2.TrainEvalPipelineConfig()
@@ -101,21 +102,3 @@ print(f"Running export command: {export_command}")
 export_result = os.system(export_command)
 if export_result != 0:
     raise RuntimeError("Exporting TFLite graph failed.")
-
-# Quantize and save TFLite model
-SAVED_MODEL_DIR = os.path.join(OUTPUT_DIR, 'tflite_graph')
-converter = tf.lite.TFLiteConverter.from_frozen_graph(
-    os.path.join(SAVED_MODEL_DIR, 'tflite_graph.pb'),
-    input_arrays=['normalized_input_image_tensor'],
-    output_arrays=['TFLite_Detection_PostProcess'],
-    input_shapes={'normalized_input_image_tensor': [1, 320, 320, 3]},
-)
-converter.allow_custom_ops = True
-converter.optimizations = [tf.lite.Optimize.DEFAULT]
-tflite_model = converter.convert()
-
-# Save quantized TFLite model
-tflite_model_path = os.path.join(OUTPUT_DIR, 'model_quantized_for_edge_cpu.tflite')
-with open(tflite_model_path, 'wb') as f:
-    f.write(tflite_model)
-print(f'Edge CPU quantized model saved at {tflite_model_path}')

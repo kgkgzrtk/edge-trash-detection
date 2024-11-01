@@ -79,12 +79,12 @@ SSDLite MobileDetの事前学習済みモデルをTACOデータセットで転�
 
 ### 5. モデルの量子化
 
-転移学習されたモデルを量子化して、TFLite形式に変換します。
+転移学習されたモデルを量子化して、TFLite形式に変換します。以下のコマンドを実行してください：
 
 ```bash
-python scripts/quantize_model.py
-
+./scripts/quantize.sh
 ```
+量子化されたモデルは、`models/<experiment_name>/model_quantized_for_edge_cpu.tflite`として保存されます。
 
 ### 6. モデルの評価
 
@@ -92,7 +92,6 @@ python scripts/quantize_model.py
 
 ```bash
 ./scripts/evaluate.sh
-
 ```
 
 ## 注意事項
@@ -160,4 +159,4 @@ python train/train.py
     ```
 
 5. **モデルの量子化**
-    - 転移学習後、モデルは自動的に量子化され、TFLite形式で保存されます。量子化されたモデルは `model_quantized.tflite` という名前で保存されます。
+    - 転移学習後、モデルは自動的に量子化され、TFLite形式で保存されます。量子化されたモデルは `models/<experiment_name>/model_quantized_for_edge_cpu.tflite`として保存されます。

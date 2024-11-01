@@ -17,9 +17,11 @@ models/
 *.tflite
 
 # データセット関連
+data/
 dataset/*.record
 dataset/*.csv
 dataset/*.json
+dataset/TACO
 
 # ログファイル
 logs/

@@ -4,7 +4,7 @@ import tensorflow as tf
 from pycocotools.coco import COCO
 from object_detection.utils import dataset_util
 
-def create_tf_example(image_info, annotations, image_dir, category_name):
+def create_tf_example(image_info, annotations, image_dir, label_name, top_labels):
     image_path = os.path.join(image_dir, image_info['file_name'])
     
     with tf.io.gfile.GFile(image_path, 'rb') as fid:
@@ -21,6 +21,10 @@ def create_tf_example(image_info, annotations, image_dir, category_name):
     classes = []
     
     for ann in annotations:
+        original_label_id = ann['category_id']
+        if original_label_id not in top_labels:
+            continue
+        
         xmin = ann['bbox'][0] / width
         ymin = ann['bbox'][1] / height
         xmax = (ann['bbox'][0] + ann['bbox'][2]) / width
@@ -31,9 +35,10 @@ def create_tf_example(image_info, annotations, image_dir, category_name):
         ymins.append(ymin)
         ymaxs.append(ymax)
         
-        category_id = ann['category_id']
-        classes.append(category_id)
-        classes_text.append(category_name[category_id].encode('utf8'))
+        original_label_name = label_name[original_label_id]
+        
+        classes.append(original_label_id)
+        classes_text.append(original_label_name.encode('utf8'))
     
     tf_example = tf.train.Example(features=tf.train.Features(feature={
         'image/height': dataset_util.int64_feature(height),
@@ -51,16 +56,7 @@ def create_tf_example(image_info, annotations, image_dir, category_name):
     }))
     return tf_example
 
-def create_label_map(category_name, output_file):
-    with open(output_file, 'w') as f:
-        for category_id, category in category_name.items():
-            f.write("item {\n")
-            f.write(f"  id: {int(category_id)}\n")
-            f.write(f"  name: '{category}'\n")
-            f.write("}\n\n")
-
 def main():
-    # TACOデータセットのパスを修正
     taco_dir = 'data/TACO'
     output_dir = 'dataset'
     os.makedirs(output_dir, exist_ok=True)
@@ -68,37 +64,55 @@ def main():
     
     coco = COCO(annotations_file)
     
-    # カテゴリ名の取得
-    category_name = {cat['id']: cat['name'] for cat in coco.loadCats(coco.getCatIds())}
+    label_name = {cat['id']: cat['name'] for cat in coco.loadCats(coco.getCatIds())}
     
-    # ラベルマップの作成
-    label_map_output = os.path.join(output_dir, 'label_map.pbtxt')
-    create_label_map(category_name, label_map_output)
-    
-    # 訓練データとテストデータの分割（80:20）
     image_ids = list(coco.imgs.keys())
     train_size = int(len(image_ids) * 0.8)
     
     train_ids = image_ids[:train_size]
     test_ids = image_ids[train_size:]
     
-    # 訓練データの作成
+    label_count = {cat_id: 0 for cat_id in label_name.keys()}
+    
+    for image_id in image_ids:
+        annotations = coco.loadAnns(coco.getAnnIds(imgIds=image_id))
+        for ann in annotations:
+            label_count[ann['category_id']] += 1
+    
+    # 上位10個のクラスを取得
+    top_labels = sorted(label_count, key=label_count.get, reverse=True)[:10]
+    
+    # 新しいIDを1から順にマッピング
+    id_mapping = {cat_id: idx + 1 for idx, cat_id in enumerate(top_labels)}
+    
+    # label_map.pbtxtの作成
+    with open(os.path.join(output_dir, 'label_map.pbtxt'), 'w') as f:
+        for cat_id, new_id in id_mapping.items():
+            f.write(f"item {{\n  id: {new_id}\n  name: '{label_name[cat_id]}'\n}}\n\n")
+    
     train_writer = tf.io.TFRecordWriter(os.path.join(output_dir, 'train.record'))
     for image_id in train_ids:
         image_info = coco.imgs[image_id]
         annotations = coco.loadAnns(coco.getAnnIds(imgIds=image_id))
-        tf_example = create_tf_example(image_info, annotations, os.path.join(taco_dir, 'data'), category_name)
+        tf_example = create_tf_example(image_info, annotations, os.path.join(taco_dir, 'data'), label_name, id_mapping)
         train_writer.write(tf_example.SerializeToString())
     train_writer.close()
     
-    # テストデータの作成
-    test_writer = tf.io.TFRecordWriter(os.path.join(output_dir, 'test.record'))
+    val_writer = tf.io.TFRecordWriter(os.path.join(output_dir, 'val.record'))
     for image_id in test_ids:
         image_info = coco.imgs[image_id]
         annotations = coco.loadAnns(coco.getAnnIds(imgIds=image_id))
-        tf_example = create_tf_example(image_info, annotations, os.path.join(taco_dir, 'data'), category_name)
-        test_writer.write(tf_example.SerializeToString())
-    test_writer.close()
+        tf_example = create_tf_example(image_info, annotations, os.path.join(taco_dir, 'data'), label_name, id_mapping)
+        val_writer.write(tf_example.SerializeToString())
+    val_writer.close()
+    
+    print(f"Total number of labels: {len(top_labels)}")
+    print(f"Number of training images: {len(train_ids)}")
+    print(f"Number of validation images: {len(test_ids)}")
+    print(f"Train/Validation split ratio: {len(train_ids) / len(image_ids):.2f}/{len(test_ids) / len(image_ids):.2f}")
+    
+    for cat_id in top_labels:
+        print(f"Label '{label_name[cat_id]}': {label_count[cat_id]} images")
 
 if __name__ == '__main__':
     main()
