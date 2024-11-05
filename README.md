@@ -1,162 +1,116 @@
 # Edge Trash Detection with AITRIOS and IMX500
 
----
-
-このプロジェクトは、TACOデータセットを使用して、**SSDLite MobileDet**の転移学習と8bit量子化された**TFLiteモデル**を生成し、**AITRIOSのIMX500**デバイス上でリアルタイムにゴミ検出を行うことを目的としています。
+## 概要
+このプロジェクトは、**SSDLite MobileDet** モデルを用いて、trash-detectionデータセットで転移学習を行い、8ビット量子化された**TFLiteモデル**を生成することで、**IMX500デバイス**上でのリアルタイムのゴミ検出を実現することを目的としています。量子化によりエッジデバイスのリソース消費を最小限に抑え、高効率なリアルタイム推論が可能です。
 
 ## プロジェクトの目的
-
-リアルタイム環境モニタリングやゴミ検出をエッジデバイス上で効率的に行うための**軽量モデル**を生成します。量子化モデルはエッジデバイス上で低リソースで動作し、リソース効率を最大化します。
+- 軽量かつリソース効率の高いゴミ検出モデルをエッジデバイス用に構築し、環境モニタリングを効率化すること。
+- 転移学習および8ビット量子化を施したモデルの生成。
 
 ## 必要な前提条件
 
-- Docker
-- NVIDIA GPU + NVIDIA Driver
-- NVIDIA Container Toolkit
-- Git
-- Python 3.x
+- **ハードウェア**：
+  - NVIDIA GPU（CUDA Compute Capability 6.1以上）
+  - 最低8GBのGPUメモリ
+
+- **ソフトウェア**：
+  - Docker 20.10.0以上
+  - NVIDIAドライバ 450.80.02以上
+  - NVIDIA Container Toolkit
+  - Git 2.28.0以上
+  - Python 3.8.x
+  - TensorFlow 1.15.5（モデル学習用）
+  - TensorFlow 2.4.1（モデル量子化用）
 
 ## プロジェクト構成
 
 ```
+edge-trash-detection/
+├── Dockerfile                             # Dockerイメージビルド用の設定ファイル
+├── README.md                              # プロジェクトの概要と実行手順
+├── build_docker.sh                        # Dockerイメージのビルドスクリプト
+├── config/
+│   └── ssdlite_mobilenet_td.config        # 転移学習用の設定ファイル
 ├── data/
-│   ├── TACO/                   # TACOデータセットを格納するディレクトリ
-│   └── prepare_taco_dataset.py # TACOデータセットの準備スクリプト
-│
-├── models/
-│   ├── ssdlite_mobiledet/       # COCOで事前学習済みのSSDLite MobileDetモデル
-│   └── tflite_model/            # 量子化されたTFLite形式のモデル
-│
-├── scripts/
-│   ├── download_model.sh        # 事前学習済みモデルのダウンロードスクリプト
-│   ├── retrain.sh               # 転移学習用のスクリプト
-│   ├── evaluate.sh              # モデルの評価スクリプト
-│   └── quantize_model.py        # モデルを8bit量子化してTFLiteモデルに変換するスクリプト
-│
-├── Dockerfile                   # Dockerイメージをビルドするための設定ファイル
-└── README.md                    # プロジェクトの概要と実行手順
-
+│   └── trash-detection/                   # データセット格納ディレクトリ
+├── dataset/
+│   └── prepare_trash_detection_dataset.py # データセット準備スクリプト
+├── models/                                # 学習済みモデルやチェックポイントを保存
+│   ├── pretrained_model/                  # 事前学習済みモデル
+│   └── retrained_ssdlite_mobiledet_td_<timestamp>/ # trash-detectionデータセットでの再学習モデル
+├── scripts/                               # 実行スクリプト
+│   ├── download_model.sh                  # 事前学習済みモデルのダウンロードスクリプト
+│   ├── quantize.sh                        # モデルの量子化とTFLite変換スクリプト
+│   ├── retrain.sh                         # モデルの転移学習スクリプト
+│   ├── retrain_ssdlite_mobiledet.py       # モデル学習スクリプト
+│   ├── run_prepare_trash_detection_dataset.sh # データセット準備の実行スクリプト
+│   └── tensorboard.sh                     # TensorBoardサーバー起動スクリプト
 ```
 
-## セットアップ手順
+## Docker環境構築とタスクの実行手順
 
-### 1. リポジトリのクローン
-
-以下のコマンドでリポジトリをクローンします。
-
-```bash
-git clone <リポジトリのURL>
-cd edge-trash-detection
-
-```
-
-### 2. Dockerイメージのビルド
-
-Dockerを使用してイメージをビルドします。
-
-```bash
-./scripts/build_docker.sh
-
-```
-
-### 3. データセットの準備
-
-TACOデータセットをダウンロードし、必要な形式に整形します。
-
-```bash
-python data/prepare_taco_dataset.py
-
-```
-
-### 4. モデルの転移学習
-
-SSDLite MobileDetの事前学習済みモデルをTACOデータセットで転移学習します。
-
-```bash
-./scripts/retrain.sh
-
-```
-
-### 5. モデルの量子化
-
-転移学習されたモデルを量子化して、TFLite形式に変換します。以下のコマンドを実行してください：
-
-```bash
-./scripts/quantize.sh
-```
-量子化されたモデルは、`models/<experiment_name>/model_quantized_for_edge_cpu.tflite`として保存されます。
-
-### 6. モデルの評価
-
-量子化されたモデルの精度を評価し、TACOデータセットでの推論結果を確認します。
-
-```bash
-./scripts/evaluate.sh
-```
-
-## 注意事項
-
-- **NVIDIA GPUが必須です**：転移学習や量子化のプロセスにはNVIDIAドライバとContainer Toolkitが必要です。
-- **データセットの準備に時間がかかる可能性があります**：TACOデータセットは大規模であるため、ダウンロードに時間がかかることがあります。
-## 追加スクリプトと説明
-
-### download_model.sh
-このスクリプトは、事前学習済みのSSDLite MobileDetモデルをダウンロードします。以下のように実行してください。
-
-```bash
-bash scripts/download_model.sh
-```
-
-### quantize_model.py
-このスクリプトは、学習済みのモデルを8ビット量子化し、TFLiteフォーマットに変換します。以下のコマンドで実行できます。
-
-```bash
-python scripts/quantize_model.py
-```
-
-### build_docker.sh
-Docker環境をビルドするためのスクリプトです。以下のコマンドで実行します。
+### 1. Dockerイメージのビルド
+Dockerfileを使用して環境を構築します。以下のコマンドを実行してイメージをビルドしてください。
 
 ```bash
 bash build_docker.sh
 ```
 
-### train.py
-`train/`ディレクトリ内の`train.py`は、モデルのトレーニングを実行するためのスクリプトです。
+### 2. タスクの実行
+
+各タスクは、構築されたDockerコンテナ内で `bash scripts/xxx.sh` の形式で実行されます。以下の手順に従って各タスクを順番に実行してください。
+
+#### (1) 事前学習済みモデルのダウンロード
+
+事前学習済みのSSDLite MobileDetモデルをダウンロードします。
 
 ```bash
-python train/train.py
+bash scripts/download_model.sh
 ```
 
-### ssdlite_mobilenet_taco.config
-`config/`ディレクトリ内の`ssdlite_mobilenet_taco.config`は、モデルの学習に使用される設定ファイルです。訓練時にこのファイルを参照してください。
+#### (2) データセットの準備
 
-### 転移学習 + 量子化の流れ
+trash-detectionデータセットを準備します。
 
-1. **環境構築**
-    - Dockerを使用して、以下のコマンドで環境を構築してください。
-    ```bash
-    bash build_docker.sh
-    ```
+```bash
+bash scripts/run_prepare_trash_detection_dataset.sh
+```
 
-2. **事前学習モデルとデータセットの準備**
-    - 以下のコマンドで事前学習モデルをダウンロードし、TACOデータセットを準備します。
-    ```bash
-    bash scripts/download_model.sh
-    python data/prepare_taco_dataset.py
-    ```
+#### (3) モデルの転移学習
 
-3. **転移学習**
-    - モデルを転移学習させます。以下のコマンドを実行してください。
-    ```bash
-    python scripts/retrain_ssdlite_mobiledet.py
-    ```
+trash-detectionデータセットを使用して、SSDLite MobileDetモデルを転移学習します。
 
-4. **学習したモデルの評価**
-    - 以下のコマンドでモデルの評価を行います。
-    ```bash
-    bash scripts/evaluate.sh
-    ```
+```bash
+bash scripts/retrain.sh
+```
 
-5. **モデルの量子化**
-    - 転移学習後、モデルは自動的に量子化され、TFLite形式で保存されます。量子化されたモデルは `models/<experiment_name>/model_quantized_for_edge_cpu.tflite`として保存されます。
+#### (4) モデルの量子化とTFLite変換
+
+転移学習済みモデルを8ビット量子化し、TFLite形式に変換します。量子化されたモデルはエッジデバイス向けに最適化されています。
+
+```bash
+bash scripts/quantize.sh
+```
+
+## 注意事項
+- **NVIDIA GPUが必須**：転移学習や量子化にはNVIDIAドライバとContainer Toolkitが必要です。
+- **データセットの準備には時間がかかる場合があります**：trash-detectionデータセットは大規模であり、ダウンロードや整形に時間がかかることがあります。
+
+## 追加スクリプトの詳細
+
+### download_model.sh
+事前学習済みのSSDLite MobileDetモデルをダウンロードします。
+
+### run_prepare_trash_detection_dataset.sh
+データセット準備スクリプトを呼び出し、trash-detectionデータセットを適切な形式に整形します。
+
+### retrain.sh
+`retrain_ssdlite_mobiledet.py` を実行して、trash-detectionデータセットを用いたモデルの転移学習を行います。
+
+### quantize.sh
+以下の手順でフローズングラフの生成と8ビット量子化を行い、TFLite形式に変換します。
+- 最新の学習済みモデルディレクトリを確認し、エクスポートと量子化を実行します。
+- `tflite_convert` コマンドを使用してモデルをTFLiteに変換します。
+
+### tensorboard.sh
+学習プロセスを可視化するために、TensorBoardサーバーを起動します。
