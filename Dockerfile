@@ -22,10 +22,9 @@ RUN apt-get update && \
 RUN mkdir -p /tensorflow/models
 
 # TensorFlowモデルのリポジトリをクローンし、指定のコミットにチェックアウト
-RUN git clone https://github.com/tensorflow/tensorflow.git --depth 1
-RUN git clone https://github.com/tensorflow/models.git && \
-    cd models && git checkout 420a7253e034a12ae2208e6ec94d3e4936177a53 && \
-    mv models /tensorflow/models
+RUN git clone https://github.com/tensorflow/models.git /tensorflow/models && \
+    cd /tensorflow/models && \
+    git checkout 420a7253e034a12ae2208e6ec94d3e4936177a53
 
 # 必要なPythonパッケージをインストール
 RUN python3 -m pip install --upgrade pip && \

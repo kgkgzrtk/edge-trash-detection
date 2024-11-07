@@ -14,15 +14,22 @@ parser = argparse.ArgumentParser(description='Retrain SSDLite MobileDet model')
 parser.add_argument('--experiment_name', type=str, 
                     default=f"retrained_ssdlite_mobiledet_td_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                     help='Name of the experiment')
+parser.add_argument('--resume', type=str, default=None,
+                    help='Path to the checkpoint to resume training from')
 args = parser.parse_args()
 
-# 実験名の設定
-experiment_name = args.experiment_name
+# Set output directory based on whether resuming or not
+if args.resume:
+    OUTPUT_DIR = os.path.join('models', f"{args.experiment_name}_resumed")
+    print(f"Resuming training from checkpoint: {args.resume}")
+else:
+    OUTPUT_DIR = os.path.join('models', args.experiment_name)
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+print(f"Output directory: {OUTPUT_DIR}")
 
 # Dataset and output directory setup
 DATA_DIR = 'dataset'
-OUTPUT_DIR = os.path.join('models', experiment_name)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Model setup
 PRETRAINED_MODEL_NAME = 'ssdlite_mobiledet_cpu_320x320_coco_2020_05_19'
@@ -60,6 +67,14 @@ pipeline_config.train_config.fine_tune_checkpoint = os.path.join(
 )
 pipeline_config.train_config.fine_tune_checkpoint_type = "detection"
 pipeline_config.train_config.from_detection_checkpoint = True
+# Enable ssdlite, this should already be enabled in the config we downloaded, but this is just to make sure.
+pipeline_config.model.ssd.box_predictor.convolutional_box_predictor.kernel_size = 3
+pipeline_config.model.ssd.box_predictor.convolutional_box_predictor.use_depthwise = True
+pipeline_config.model.ssd.feature_extractor.use_depthwise = True
+# Quantization Aware Training
+pipeline_config.graph_rewriter.quantization.delay = 0
+pipeline_config.graph_rewriter.quantization.weight_bits = 8
+pipeline_config.graph_rewriter.quantization.activation_bits = 8
 
 # Save modified pipeline.config
 config_text = text_format.MessageToString(pipeline_config)
@@ -71,6 +86,10 @@ print(f"Modified pipeline.config saved at {OUTPUT_CONFIG_PATH}")
 # TensorBoard log directory setup
 TENSORBOARD_LOG_DIR = os.path.join(OUTPUT_DIR, 'logs')
 os.makedirs(TENSORBOARD_LOG_DIR, exist_ok=True)
+
+# Update fine_tune_checkpoint if resuming
+if args.resume:
+    pipeline_config.train_config.fine_tune_checkpoint = args.resume
 
 # Run training
 start = datetime.now()
@@ -91,14 +110,3 @@ duration = end - start
 hours, remainder = divmod(duration.seconds, 3600)
 minutes, seconds = divmod(remainder, 60)
 print(f'TRAINING TIME: {hours}:{minutes:02d}:{seconds:02d}')
-
-# Export TFLite model
-export_command = f'python3 /tensorflow/models/research/object_detection/export_tflite_ssd_graph.py \
-    --pipeline_config_path={OUTPUT_CONFIG_PATH} \
-    --trained_checkpoint_prefix={OUTPUT_DIR}/model.ckpt-{NUM_STEPS} \
-    --output_directory={OUTPUT_DIR}/tflite_graph \
-    --add_postprocessing_op=true'
-print(f"Running export command: {export_command}")
-export_result = os.system(export_command)
-if export_result != 0:
-    raise RuntimeError("Exporting TFLite graph failed.")
