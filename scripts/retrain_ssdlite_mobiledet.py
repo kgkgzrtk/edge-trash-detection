@@ -45,7 +45,7 @@ if not os.path.exists(PRETRAINED_MODEL_PATH):
     os.system(f'tar -xzvf {PRETRAINED_MODEL_TAR} -C {PRETRAINED_MODEL_DIR}')
 
 # Training parameters
-NUM_STEPS = 20000  # Increase training steps
+NUM_STEPS = 40000  # Increase training steps
 BATCH_SIZE = 16    # Adjust batch size
 NUM_CLASSES = 5   # Trash Detection dataset class count
 
@@ -61,6 +61,7 @@ with tf.io.gfile.GFile(CONFIG_PATH, "r") as f:
 pipeline_config.model.ssd.num_classes = NUM_CLASSES
 pipeline_config.train_config.batch_size = BATCH_SIZE
 pipeline_config.train_config.num_steps = NUM_STEPS
+pipeline_config.train_config.optimizer.momentum_optimizer.learning_rate.cosine_decay_learning_rate.total_steps = NUM_STEPS
 pipeline_config.train_config.fine_tune_checkpoint = os.path.join(
     PRETRAINED_MODEL_PATH,
     'model.ckpt-400000'

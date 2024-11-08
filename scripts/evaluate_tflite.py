@@ -81,4 +81,4 @@ for image, groundtruth in dataset:
 
 # Get evaluation metrics
 metrics = evaluator.evaluate()
-print("Evaluation metrics:", metrics) 
+print("Evaluation metrics:", metrics)

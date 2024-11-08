@@ -92,6 +92,14 @@ bash scripts/retrain.sh
 bash scripts/quantize.sh
 ```
 
+#### (5) TFLiteモデルの解析
+
+TFLiteモデルを解析するために、以下のコマンドを実行します。`--model_path_1`と`--model_path_2`の引数で解析したいモデルのパスを指定してください。
+
+```bash
+docker run --rm -v $(pwd):/workspace -w /workspace tensorflow/tensorflow:2.4.1 python3 scripts/analyze_tflite.py --model_path_1
+```
+
 ## 注意事項
 - **NVIDIA GPUが必須**：転移学習や量子化にはNVIDIAドライバとContainer Toolkitが必要です。
 - **データセットの準備には時間がかかる場合があります**：trash-detectionデータセットは大規模であり、ダウンロードや整形に時間がかかることがあります。

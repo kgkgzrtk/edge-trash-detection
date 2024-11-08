@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Define the number of steps as a variable
-NUM_STEPS=20000
+NUM_STEPS=31013
 
 # Get the latest model directory
 #LATEST_MODEL_DIR=$(ls -td models/retrained_ssdlite_mobiledet_td_* | head -n 1)
-LATEST_MODEL_DIR="models/retrained_ssdlite_mobiledet_td_20241106072657"
+LATEST_MODEL_DIR="models/retrained_ssdlite_mobiledet_td_20241107064141"
 if [ -z "$LATEST_MODEL_DIR" ]; then
     echo "No trained model found in models directory"
     exit 1
