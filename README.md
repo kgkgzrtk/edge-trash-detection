@@ -39,7 +39,6 @@ edge-trash-detection/
 │   ├── pretrained_model/                  # 事前学習済みモデル
 │   └── retrained_ssdlite_mobiledet_td_<timestamp>/ # trash-detectionデータセットでの再学習モデル
 ├── scripts/                               # 実行スクリプト
-│   ├── download_model.sh                  # 事前学習済みモデルのダウンロードスクリプト
 │   ├── quantize.sh                        # モデルの量子化とTFLite変換スクリプト
 │   ├── retrain.sh                         # モデルの転移学習スクリプト
 │   ├── retrain_ssdlite_mobiledet.py       # モデル学習スクリプト
@@ -60,15 +59,8 @@ bash build_docker.sh
 
 各タスクは、構築されたDockerコンテナ内で `bash scripts/xxx.sh` の形式で実行されます。以下の手順に従って各タスクを順番に実行してください。
 
-#### (1) 事前学習済みモデルのダウンロード
 
-事前学習済みのSSDLite MobileDetモデルをダウンロードします。
-
-```bash
-bash scripts/download_model.sh
-```
-
-#### (2) データセットの準備
+#### (1) データセットの準備
 
 trash-detectionデータセットを準備します。
 
@@ -76,7 +68,7 @@ trash-detectionデータセットを準備します。
 bash scripts/run_prepare_trash_detection_dataset.sh
 ```
 
-#### (3) モデルの転移学習
+#### (2) モデルの転移学習
 
 trash-detectionデータセットを使用して、SSDLite MobileDetモデルを転移学習します。
 
@@ -84,7 +76,7 @@ trash-detectionデータセットを使用して、SSDLite MobileDetモデルを
 bash scripts/retrain.sh
 ```
 
-#### (4) モデルの量子化とTFLite変換
+#### (3) モデルの量子化とTFLite変換
 
 転移学習済みモデルを8ビット量子化し、TFLite形式に変換します。量子化されたモデルはエッジデバイス向けに最適化されています。
 
@@ -92,7 +84,7 @@ bash scripts/retrain.sh
 bash scripts/quantize.sh
 ```
 
-#### (5) TFLiteモデルの解析
+#### (4) TFLiteモデルの解析
 
 TFLiteモデルを解析するために、以下のコマンドを実行します。`--model_path_1`と`--model_path_2`の引数で解析したいモデルのパスを指定してください。
 
@@ -104,10 +96,7 @@ docker run --rm -v $(pwd):/workspace -w /workspace tensorflow/tensorflow:2.4.1 p
 - **NVIDIA GPUが必須**：転移学習や量子化にはNVIDIAドライバとContainer Toolkitが必要です。
 - **データセットの準備には時間がかかる場合があります**：trash-detectionデータセットは大規模であり、ダウンロードや整形に時間がかかることがあります。
 
-## 追加スクリプトの詳細
-
-### download_model.sh
-事前学習済みのSSDLite MobileDetモデルをダウンロードします。
+## スクリプトの詳細
 
 ### run_prepare_trash_detection_dataset.sh
 データセット準備スクリプトを呼び出し、trash-detectionデータセットを適切な形式に整形します。
